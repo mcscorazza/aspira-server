@@ -86,6 +86,15 @@
       class="hidden fixed bottom-8 right-8 flex flex-col gap-2"
     >
       <button
+        onclick="excluirSelecionados()"
+        class="bg-red-600 text-white p-4 rounded-full shadow-2xl hover:bg-red-700 transition-all flex items-center gap-2"
+      >
+        <i class="fas fa-trash-alt text-xl"></i>
+        <span class="font-bold"
+          >Excluir (<span class="countSelected">0</span>)</span
+        >
+      </button>
+      <button
         onclick="baixarSelecionados()"
         class="bg-green-600 text-white p-4 rounded-full shadow-2xl hover:bg-green-700 transition-all flex items-center gap-2"
       >
@@ -324,6 +333,47 @@
         }
       }
 
+      async function excluirSelecionados() {
+        const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+        const chaves = Array.from(checkboxes).map((cb) => cb.value);
+
+        if (chaves.length === 0) return;
+
+        const confirmar = confirm(
+          `ATENÇÃO: Você está prestes a excluir ${chaves.length} arquivo(s).\n\nEsta ação é permanente e não pode ser desfeita. Deseja continuar?`,
+        );
+
+        if (!confirmar) return;
+
+        const fab = document.getElementById("fabDownload");
+        fab.classList.add("pointer-events-none", "opacity-50");
+
+        try {
+          const promessas = chaves.map((chave) =>
+            fetch(`${API_URL}/excluir?chave=${encodeURIComponent(chave)}`, {
+              method: "DELETE",
+            }),
+          );
+
+          const resultados = await Promise.all(promessas);
+          const todosOk = resultados.every((r) => r.ok);
+
+          if (todosOk) {
+            alert(`${chaves.length} arquivos excluídos com sucesso!`);
+          } else {
+            alert("Alguns arquivos podem não ter sido excluídos corretamente.");
+          }
+
+          document.getElementById("selectAll").checked = false;
+          carregarArquivos(prefixoAtual);
+        } catch (erro) {
+          console.error("Erro ao excluir em massa:", erro);
+          alert("Erro de conexão ao tentar excluir os arquivos.");
+        } finally {
+          fab.classList.remove("pointer-events-none", "opacity-50");
+        }
+      }
+
       document.addEventListener("change", function (e) {
         if (
           e.target.classList.contains("file-checkbox") ||
@@ -333,7 +383,7 @@
             ".file-checkbox:checked",
           ).length;
           const fab = document.getElementById("fabDownload");
-          const count = document.getElementById("countSelected");
+          const counts = document.querySelectorAll(".countSelected");
 
           if (selecionados > 0) {
             fab.classList.remove("hidden");
